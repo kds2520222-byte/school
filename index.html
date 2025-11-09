@@ -1,116 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>이야기 게시판 (좋아요/시간/페이지)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>간단한 Firebase 자유채팅</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f9fafb; padding: 20px; }
-    h1 { text-align: center; }
-    #postForm { margin-bottom: 20px; }
-    input, textarea { width: 100%; padding: 10px; margin: 5px 0; }
-    button { padding: 5px 10px; cursor: pointer; margin-right: 5px; }
-    .post { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: #fff; }
-    .post h3 { margin: 0; }
-    .post p { margin: 5px 0 10px 0; }
-    .post-info { font-size: 0.85em; color: #555; }
-    .post-actions { text-align: right; }
-    #loadMore { padding: 10px 20px; cursor: pointer; margin-top: 10px; }
+    :root{--bg:#f6f8fb;--card:#fff;--accent:#2563eb;--muted:#64748b}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans KR',sans-serif;background:var(--bg);margin:0;display:flex;align-items:center;justify-content:center;height:100vh}
+    .wrap{width:100%;max-width:720px;margin:20px;padding:16px;background:var(--card);border-radius:12px;box-shadow:0 6px 20px rgba(34,37,49,0.06)}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    h1{font-size:18px;margin:0}
+    .muted{color:var(--muted);font-size:13px}
+    #msgs{height:60vh;overflow:auto;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #eef2f7}
+    .msg{padding:8px 10px;border-radius:8px;margin-bottom:8px;background:white;box-shadow:0 1px 0 rgba(13,17,23,0.03);word-wrap:break-word}
+    .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+    form{display:flex;gap:8px;margin-top:12px}
+    input[type=text]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef9;font-size:14px}
+    button{padding:10px 14px;border-radius:8px;border:0;background:var(--accent);color:white;font-weight:600}
+    .small{font-size:12px;color:var(--muted);margin-top:6px}
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <header>
+      <h1>간단한 자유채팅</h1>
+      <div class="muted">텍스트만 허용 · 메시지 길이 ≤ 500자 · 최대 150개 보관</div>
+    </header>
 
-<h1>이야기 게시판</h1>
+    <div id="msgs" aria-live="polite"></div>
 
-<div id="postForm">
-  <input type="text" id="author" placeholder="작성자 이름">
-  <textarea id="content" placeholder="이야기를 작성하세요..." rows="4"></textarea>
-  <button onclick="addPost()">글 올리기</button>
-</div>
+    <form id="sendForm" autocomplete="off">
+      <input id="text" type="text" placeholder="메시지 입력 (최대 500자)" maxlength="500" required />
+      <button type="submit">전송</button>
+    </form>
+    <div class="small">실시간 Firebase Realtime Database 사용 — 이미지는 금지되어 있습니다.</div>
+  </div>
 
-<div id="posts"></div>
-<button id="loadMore" onclick="loadMorePosts()">더보기</button>
+  <!-- Firebase CDN (compat 모드로 편리하게 사용) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+      // Firebase 설정 (Firebase 콘솔에서 복사)
+     const firebaseConfig = {
+      apiKey: "AIzaSyAR_ng-v5TcnlEORtRO76qgwghiFh8QlK4",
+      authDomain: "flappybird-a9fd0.firebaseapp.com",
+      databaseURL: "https://flappybird-a9fd0-default-rtdb.firebaseio.com",
+      projectId: "flappybird-a9fd0",
+      storageBucket: "flappybird-a9fd0.appspot.com",
+      messagingSenderId: "691700965704",
+      appId: "1:691700965704:web:ba76c8dcd5755265a9d37d"
+    }
+    // 초기화
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const msgsRef = db.ref('simpleChat/messages');
+    const MAX_MESSAGES = 150;
 
-<script>
-  // Firebase 초기화
-  const firebaseConfig = {
-    apiKey: "AIzaSyAR_ng-v5TcnlEORtRO76qgwghiFh8QlK4",
-    authDomain: "flappybird-a9fd0.firebaseapp.com",
-    databaseURL: "https://flappybird-a9fd0-default-rtdb.firebaseio.com",
-    projectId: "flappybird-a9fd0",
-    storageBucket: "flappybird-a9fd0.appspot.com",
-    messagingSenderId: "691700965704",
-    appId: "1:691700965704:web:ba76c8dcd5755265a9d37d"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+    const msgsEl = document.getElementById('msgs');
+    const form = document.getElementById('sendForm');
+    const input = document.getElementById('text');
 
-  const POSTS_PER_PAGE = 5;
-  let loadedPosts = 0;
-  let allPosts = [];
-
-  // 글 추가
-  function addPost() {
-    const author = document.getElementById('author').value.trim();
-    const content = document.getElementById('content').value.trim();
-    if (!author || !content) {
-      alert('작성자와 내용을 입력해주세요.');
-      return;
+    // 안전: 사용자 입력을 HTML 이스케이프
+    function escapeHtml(str){
+      return str.replace(/[&<>"'`=\/]/g, function(s){
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;",'`':'&#96;','/':'&#47;','=':'&#61;'})[s];
+      });
     }
 
-    const postRef = db.ref('posts').push();
-    postRef.set({
-      author,
-      content,
-      timestamp: Date.now(),
-      likes: 0
+    // 메시지 렌더링
+    function renderMessage(data){
+      const {text, ts} = data;
+      const el = document.createElement('div');
+      el.className = 'msg';
+      const date = new Date(ts);
+      el.innerHTML = `<div class="meta">${date.toLocaleString()}</div><div>${escapeHtml(text)}</div>`;
+      msgsEl.appendChild(el);
+      // 스크롤 - 새 메시지 보이도록
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    }
+
+    // 처음 로드: 마지막 MAX_MESSAGES만 구독
+    const q = msgsRef.orderByChild('ts').limitToLast(MAX_MESSAGES);
+    q.on('child_added', snap => renderMessage(snap.val()));
+
+    // 메시지 전송
+    form.addEventListener('submit', async (e) =>{
+      e.preventDefault();
+      let text = input.value.trim();
+      if(!text) return;
+      if(text.length > 500){ alert('메시지는 500자 이내로 작성해주세요.'); return; }
+
+      // 추가 보안: 이미지/HTML 시도 차단 — 문장 내 <img> 태그나 data: URL 포함 시 거부
+      const lowered = text.toLowerCase();
+      if(lowered.includes('<img') || lowered.includes('data:image') || lowered.includes('://')){
+        // 사용자가 링크를 막길 원하면 여기도 조정 가능
+        alert('이미지나 링크는 허용되지 않습니다. 텍스트만 입력해주세요.');
+        return;
+      }
+
+      // 타임스탬프와 함께 저장
+      const message = { text: text, ts: Date.now() };
+      await msgsRef.push(message);
+      input.value = '';
+
+      // 클린업: 총 개수를 확인하고 오래된 메시지 삭제
+      msgsRef.once('value').then(snapshot =>{
+        const total = snapshot.numChildren();
+        if(total > MAX_MESSAGES){
+          const removeCount = total - MAX_MESSAGES;
+          // 오래된 것부터 removeCount 개를 가져와 삭제
+          msgsRef.orderByChild('ts').limitToFirst(removeCount).once('value', oldSnap =>{
+            oldSnap.forEach(child => child.ref.remove());
+          });
+        }
+      });
     });
 
-    document.getElementById('content').value = '';
-  }
-
-  // 글 좋아요
-  function likePost(postId, currentLikes) {
-    db.ref('posts/' + postId).update({ likes: currentLikes + 1 });
-  }
-
-  // 글 불러오기
-  const postsDiv = document.getElementById('posts');
-  const postsRef = db.ref('posts');
-
-  postsRef.on('value', snapshot => {
-    const posts = snapshot.val();
-    allPosts = posts ? Object.entries(posts).sort((a, b) => b[1].timestamp - a[1].timestamp) : [];
-    loadedPosts = 0;
-    postsDiv.innerHTML = '';
-    loadMorePosts();
-  });
-
-  function loadMorePosts() {
-    const nextPosts = allPosts.slice(loadedPosts, loadedPosts + POSTS_PER_PAGE);
-    nextPosts.forEach(([key, post]) => {
-      const date = new Date(post.timestamp);
-      const postElem = document.createElement('div');
-      postElem.className = 'post';
-      postElem.innerHTML = `
-        <h3>${post.author}</h3>
-        <p>${post.content}</p>
-        <div class="post-info">
-          작성시간: ${date.toLocaleString()} | 좋아요: <span id="like-${key}">${post.likes}</span>
-        </div>
-        <div class="post-actions">
-          <button onclick="likePost('${key}', ${post.likes})">좋아요</button>
-        </div>
-      `;
-      postsDiv.appendChild(postElem);
+    // 성능 팁: DOM이 너무 커지면 가장 오래된 요소 제거 (클라이언트에서도 150개 유지)
+    const OBS_LIMIT = MAX_MESSAGES + 10;
+    const observer = new MutationObserver(()=>{
+      while(msgsEl.children.length > OBS_LIMIT){ msgsEl.removeChild(msgsEl.firstChild); }
     });
-    loadedPosts += nextPosts.length;
-    document.getElementById('loadMore').style.display = loadedPosts < allPosts.length ? 'block' : 'none';
-  }
-</script>
+    observer.observe(msgsEl, {childList:true});
 
+    // 오류 핸들링 (간단하게 콘솔에 표시)
+    msgsRef.on('child_removed', ()=>{/* 자동으로 UI에 반영되어도 됨 */});
+  </script>
 </body>
 </html>
+
