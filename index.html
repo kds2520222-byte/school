@@ -3,131 +3,301 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>간단한 Firebase 자유채팅</title>
+  <title>영기 육아 게임</title>
   <style>
-    :root{--bg:#f6f8fb;--card:#fff;--accent:#2563eb;--muted:#64748b}
+    :root{--bg:#f7fbff;--card:#ffffff;--accent:#ff6b6b;--muted:#6b7280}
     *{box-sizing:border-box}
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans KR',sans-serif;background:var(--bg);margin:0;display:flex;align-items:center;justify-content:center;height:100vh}
-    .wrap{width:100%;max-width:720px;margin:20px;padding:16px;background:var(--card);border-radius:12px;box-shadow:0 6px 20px rgba(34,37,49,0.06)}
-    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-    h1{font-size:18px;margin:0}
-    .muted{color:var(--muted);font-size:13px}
-    #msgs{height:60vh;overflow:auto;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #eef2f7}
-    .msg{padding:8px 10px;border-radius:8px;margin-bottom:8px;background:white;box-shadow:0 1px 0 rgba(13,17,23,0.03);word-wrap:break-word}
-    .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
-    form{display:flex;gap:8px;margin-top:12px}
-    input[type=text]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef9;font-size:14px}
-    button{padding:10px 14px;border-radius:8px;border:0;background:var(--accent);color:white;font-weight:600}
-    .small{font-size:12px;color:var(--muted);margin-top:6px}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;margin:0;background:linear-gradient(180deg,#e8f0ff,#fdfefe);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .game{width:100%;max-width:920px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(17,24,39,0.08);overflow:hidden;display:grid;grid-template-columns:1fr 360px}
+    .left{padding:28px;display:flex;flex-direction:column;gap:18px}
+    .title{display:flex;align-items:center;gap:12px}
+    .title h1{font-size:20px;margin:0}
+    .baby-wrap{background:linear-gradient(180deg,#fff,#fffbf0);border-radius:12px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px}
+    .baby{font-size:96px;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.08));transition:transform .15s ease}
+    .baby.happy{transform:translateY(-6px) scale(1.05)}
+    .meters{display:flex;gap:10px;width:100%}
+    .meter{flex:1;background:#f3f4f6;border-radius:999px;padding:6px}
+    .meter-inner{height:12px;border-radius:999px;background:linear-gradient(90deg,#60a5fa,#34d399);width:50%}
+    .meter-label{font-size:12px;color:var(--muted);margin-top:6px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    button{flex:1;padding:10px;border-radius:10px;border:0;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;box-shadow:0 6px 14px rgba(255,107,107,0.18)}
+    button.secondary{background:#10b981}
+    button.tertiary{background:#60a5fa}
+    button:active{transform:translateY(1px)}
+    .right{background:linear-gradient(180deg,#f8fafc,#ffffff);padding:20px;border-left:1px solid rgba(15,23,42,0.02);display:flex;flex-direction:column;gap:12px}
+    .panel{background:rgba(255,255,255,0.6);padding:12px;border-radius:10px;border:1px solid rgba(15,23,42,0.03)}
+    .log{height:240px;overflow:auto;font-size:13px;color:var(--muted);padding:8px}
+    .big{font-size:14px;font-weight:700}
+    .small{font-size:12px;color:var(--muted)}
+    .footer{display:flex;gap:8px;justify-content:space-between;align-items:center}
+    .reset{background:transparent;border:1px dashed #e5e7eb;color:#111;padding:8px;border-radius:8px;cursor:pointer}
+    @media(max-width:880px){.game{grid-template-columns:1fr}.right{order:2}}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>간단한 자유채팅</h1>
-      <div class="muted">텍스트만 허용 · 메시지 길이 ≤ 500자 · 최대 150개 보관</div>
-    </header>
+  <div class="game" role="application" aria-label="영기 육아 게임">
+    <div class="left">
+      <div class="title"><div style="font-size:28px">👶</div><h1>영기 육아 게임</h1></div>
 
-    <div id="msgs" aria-live="polite"></div>
+      <div class="baby-wrap panel">
+        <div id="baby" class="baby" aria-live="polite">🍼</div>
+        <div class="info" style="width:100%;text-align:center">
+          <div class="big" id="age">나이: 0일</div>
+          <div class="small">상태를 관리해서 영기를 건강하게 키우세요.</div>
+        </div>
 
-    <form id="sendForm" autocomplete="off">
-      <input id="text" type="text" placeholder="메시지 입력 (최대 500자)" maxlength="500" required />
-      <button type="submit">전송</button>
-    </form>
-    <div class="small">실시간 Firebase Realtime Database 사용 — 이미지는 금지되어 있습니다.</div>
+        <div class="meters" style="margin-top:12px">
+          <div style="flex:1">
+            <div class="meter" aria-hidden="true"><div id="hungerBar" class="meter-inner" style="width:80%"></div></div>
+            <div class="meter-label">배고픔 <span id="hungerVal">80</span>%</div>
+          </div>
+          <div style="flex:1">
+            <div class="meter" aria-hidden="true"><div id="hygieneBar" class="meter-inner" style="width:90%"></div></div>
+            <div class="meter-label">청결 <span id="hygieneVal">90</span>%</div>
+          </div>
+          <div style="flex:1">
+            <div class="meter" aria-hidden="true"><div id="moodBar" class="meter-inner" style="width:85%"></div></div>
+            <div class="meter-label">기분 <span id="moodVal">85</span>%</div>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:12px">
+          <button id="feedBtn">먹이기</button>
+          <button id="playBtn" class="secondary">놀아주기</button>
+          <button id="cleanBtn" class="tertiary">목욕시키기</button>
+          <button id="sleepBtn" style="flex-basis:100%">재우기</button>
+        </div>
+      </div>
+
+      <div class="panel" style="padding:12px">
+        <div class="small">자동 상태 감소: 시간이 지날수록 배고픔, 청결, 기분이 줄어듭니다. 잘 돌봐주세요!</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <div class="big">기록</div>
+        <div class="log" id="log"></div>
+      </div>
+
+      <div class="panel">
+        <div class="big">세부정보</div>
+        <div class="small">수명: <span id="daysLived">0</span>일</div>
+        <div class="small">저장: 자동으로 로컬에 저장됩니다.</div>
+      </div>
+
+      <div class="footer">
+        <button id="resetBtn" class="reset">처음부터</button>
+        <div class="small">버전 1.0</div>
+      </div>
+    </div>
   </div>
 
-  <!-- Firebase CDN (compat 모드로 편리하게 사용) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-
   <script>
-      // Firebase 설정 (Firebase 콘솔에서 복사)
-     const firebaseConfig = {
-      apiKey: "AIzaSyAR_ng-v5TcnlEORtRO76qgwghiFh8QlK4",
-      authDomain: "flappybird-a9fd0.firebaseapp.com",
-      databaseURL: "https://flappybird-a9fd0-default-rtdb.firebaseio.com",
-      projectId: "flappybird-a9fd0",
-      storageBucket: "flappybird-a9fd0.appspot.com",
-      messagingSenderId: "691700965704",
-      appId: "1:691700965704:web:ba76c8dcd5755265a9d37d"
-    }
-    // 초기화
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const msgsRef = db.ref('simpleChat/messages');
-    const MAX_MESSAGES = 150;
+    // 간단한 영기 육아 게임 로직
+    const state = {
+      hunger: 80, // 0-100 (높을수록 건강함)
+      hygiene: 90,
+      mood: 85,
+      days: 0,
+      alive: true
+    };
 
-    const msgsEl = document.getElementById('msgs');
-    const form = document.getElementById('sendForm');
-    const input = document.getElementById('text');
+    // 로컬 저장 키
+    const SAVE_KEY = 'younggi_save_v1';
 
-    // 안전: 사용자 입력을 HTML 이스케이프
-    function escapeHtml(str){
-      return str.replace(/[&<>"'`=\/]/g, function(s){
-        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;",'`':'&#96;','/':'&#47;','=':'&#61;'})[s];
-      });
-    }
+    // UI 요소들
+    const hungerBar = document.getElementById('hungerBar');
+    const hygieneBar = document.getElementById('hygieneBar');
+    const moodBar = document.getElementById('moodBar');
+    const hungerVal = document.getElementById('hungerVal');
+    const hygieneVal = document.getElementById('hygieneVal');
+    const moodVal = document.getElementById('moodVal');
+    const babyEl = document.getElementById('baby');
+    const ageEl = document.getElementById('age');
+    const logEl = document.getElementById('log');
+    const daysEl = document.getElementById('daysLived');
 
-    // 메시지 렌더링
-    function renderMessage(data){
-      const {text, ts} = data;
-      const el = document.createElement('div');
-      el.className = 'msg';
-      const date = new Date(ts);
-      el.innerHTML = `<div class="meta">${date.toLocaleString()}</div><div>${escapeHtml(text)}</div>`;
-      msgsEl.appendChild(el);
-      // 스크롤 - 새 메시지 보이도록
-      msgsEl.scrollTop = msgsEl.scrollHeight;
-    }
+    // 버튼 이벤트
+    document.getElementById('feedBtn').addEventListener('click', ()=>actionFeed());
+    document.getElementById('playBtn').addEventListener('click', ()=>actionPlay());
+    document.getElementById('cleanBtn').addEventListener('click', ()=>actionClean());
+    document.getElementById('sleepBtn').addEventListener('click', ()=>actionSleep());
+    document.getElementById('resetBtn').addEventListener('click', resetGame);
 
-    // 처음 로드: 마지막 MAX_MESSAGES만 구독
-    const q = msgsRef.orderByChild('ts').limitToLast(MAX_MESSAGES);
-    q.on('child_added', snap => renderMessage(snap.val()));
+    // 초기화: 로드/렌더
+    load();
+    render();
 
-    // 메시지 전송
-    form.addEventListener('submit', async (e) =>{
-      e.preventDefault();
-      let text = input.value.trim();
-      if(!text) return;
-      if(text.length > 500){ alert('메시지는 500자 이내로 작성해주세요.'); return; }
+    // 시간 흐름: 매 6초마다 상태 감소
+    let tickCount = 0;
+    const TICK_MS = 6000;
+    const timer = setInterval(()=>{
+      if(!state.alive) return clearInterval(timer);
+      tick();
+    }, TICK_MS);
 
-      // 추가 보안: 이미지/HTML 시도 차단 — 문장 내 <img> 태그나 data: URL 포함 시 거부
-      const lowered = text.toLowerCase();
-      if(lowered.includes('<img') || lowered.includes('data:image') || lowered.includes('://')){
-        // 사용자가 링크를 막길 원하면 여기도 조정 가능
-        alert('이미지나 링크는 허용되지 않습니다. 텍스트만 입력해주세요.');
-        return;
+    function tick(){
+      // 시간이 지날수록 서서히 감소
+      state.hunger = clamp(state.hunger - randRange(2,6));
+      state.hygiene = clamp(state.hygiene - randRange(1,4));
+      state.mood = clamp(state.mood - randRange(1,5));
+      tickCount++;
+      if(tickCount % 10 === 0){ // 10 ticks마다 하루로 계산
+        state.days++;
+        log(`하루가 지났습니다. 영기 나이: ${state.days}일`);
       }
+      checkAlive();
+      save();
+      render();
+    }
 
-      // 타임스탬프와 함께 저장
-      const message = { text: text, ts: Date.now() };
-      await msgsRef.push(message);
-      input.value = '';
+    function actionFeed(){
+      if(!state.alive) return; 
+      const gain = randRange(10,24);
+      state.hunger = clamp(state.hunger + gain);
+      state.mood = clamp(state.mood + randRange(1,6));
+      log(`먹이기: 배고픔 +${gain}`);
+      animateHappy();
+      save(); render();
+    }
 
-      // 클린업: 총 개수를 확인하고 오래된 메시지 삭제
-      msgsRef.once('value').then(snapshot =>{
-        const total = snapshot.numChildren();
-        if(total > MAX_MESSAGES){
-          const removeCount = total - MAX_MESSAGES;
-          // 오래된 것부터 removeCount 개를 가져와 삭제
-          msgsRef.orderByChild('ts').limitToFirst(removeCount).once('value', oldSnap =>{
-            oldSnap.forEach(child => child.ref.remove());
-          });
+    function actionPlay(){
+      if(!state.alive) return; 
+      const gain = randRange(8,18);
+      state.mood = clamp(state.mood + gain);
+      state.hunger = clamp(state.hunger - randRange(4,8));
+      log(`놀아주기: 기분 +${gain}, 배고픔 -${randRange(4,8)}`);
+      animateHappy();
+      save(); render();
+    }
+
+    function actionClean(){
+      if(!state.alive) return; 
+      const gain = randRange(12,28);
+      state.hygiene = clamp(state.hygiene + gain);
+      state.mood = clamp(state.mood + randRange(2,6));
+      log(`목욕시키기: 청결 +${gain}`);
+      save(); render();
+    }
+
+    function actionSleep(){
+      if(!state.alive) return; 
+      log('영기를 재웁니다... 잠깐 쉬어요');
+      // 수면 동안 빠른 회복 (비동기 시뮬)
+      disableControls(true);
+      setTimeout(()=>{
+        state.hunger = clamp(state.hunger - randRange(2,6));
+        state.mood = clamp(state.mood + randRange(6,18));
+        state.hygiene = clamp(state.hygiene - randRange(0,2));
+        log('영기가 기운을 차렸습니다!');
+        disableControls(false);
+        animateHappy();
+        save(); render();
+      },1500);
+    }
+
+    function animateHappy(){
+      babyEl.classList.add('happy');
+      babyEl.textContent = getBabyFace();
+      setTimeout(()=>{babyEl.classList.remove('happy'); babyEl.textContent = '🍼';},900);
+    }
+
+    function getBabyFace(){
+      // 간단 감정표현
+      if(state.mood > 80) return '😄';
+      if(state.mood > 60) return '🙂';
+      if(state.mood > 35) return '😐';
+      return '😢';
+    }
+
+    function render(){
+      hungerBar.style.width = state.hunger + '%';
+      hygieneBar.style.width = state.hygiene + '%';
+      moodBar.style.width = state.mood + '%';
+      hungerVal.textContent = state.hunger;
+      hygieneVal.textContent = state.hygiene;
+      moodVal.textContent = state.mood;
+      ageEl.textContent = `나이: ${state.days}일`;
+      daysEl.textContent = state.days;
+      babyEl.setAttribute('aria-label', `영기 상태: 배고픔 ${state.hunger}%, 청결 ${state.hygiene}%, 기분 ${state.mood}%`);
+
+      // 색상 변경 for low stats
+      setBarColor(hungerBar, state.hunger);
+      setBarColor(hygieneBar, state.hygiene);
+      setBarColor(moodBar, state.mood);
+    }
+
+    function setBarColor(el, value){
+      const inner = el;
+      if(value > 70) inner.style.background = 'linear-gradient(90deg,#60a5fa,#34d399)';
+      else if(value > 40) inner.style.background = 'linear-gradient(90deg,#f59e0b,#f97316)';
+      else inner.style.background = 'linear-gradient(90deg,#ef4444,#f43f5e)';
+    }
+
+    function clamp(v){ return Math.max(0, Math.min(100, Math.round(v))); }
+    function randRange(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+
+    function log(text){
+      const t = new Date().toLocaleTimeString();
+      const line = document.createElement('div');
+      line.textContent = `[${t}] ${text}`;
+      logEl.prepend(line);
+      // limit lines
+      while(logEl.childNodes.length > 100) logEl.removeChild(logEl.lastChild);
+    }
+
+    function checkAlive(){
+      if(state.hunger <= 0 || state.hygiene <= 0 || state.mood <= 0){
+        state.alive = false;
+        log('영기가 너무 상태가 안 좋아졌습니다... 게임 오버');
+        babyEl.textContent = '💀';
+        disableControls(true);
+      }
+    }
+
+    function disableControls(flag){
+      document.querySelectorAll('button').forEach(b=>b.disabled = flag);
+      if(!state.alive) document.getElementById('resetBtn').disabled = false;
+    }
+
+    // 저장/불러오기
+    function save(){
+      try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
+      catch(e){ console.warn('저장 실패', e); }
+    }
+    function load(){
+      try{
+        const raw = localStorage.getItem(SAVE_KEY);
+        if(raw){
+          const s = JSON.parse(raw);
+          Object.assign(state, s);
+          log('저장된 게임을 불러왔습니다.');
+        } else {
+          log('새로운 영기를 생성했습니다.');
         }
-      });
+      }catch(e){ console.warn('불러오기 실패', e); }
+    }
+
+    function resetGame(){
+      if(!confirm('정말 처음부터 시작할까요? 현재 진행중인 데이터는 삭제됩니다.')) return;
+      localStorage.removeItem(SAVE_KEY);
+      state.hunger = 80; state.hygiene = 90; state.mood = 85; state.days = 0; state.alive = true;
+      log('게임을 초기화했습니다. 새로 시작합니다.');
+      disableControls(false);
+      save(); render();
+    }
+
+    // 키보드 단축키 (접근성)
+    window.addEventListener('keydown', e=>{
+      if(e.key === 'f') actionFeed();
+      if(e.key === 'p') actionPlay();
+      if(e.key === 'c') actionClean();
+      if(e.key === 's') actionSleep();
     });
 
-    // 성능 팁: DOM이 너무 커지면 가장 오래된 요소 제거 (클라이언트에서도 150개 유지)
-    const OBS_LIMIT = MAX_MESSAGES + 10;
-    const observer = new MutationObserver(()=>{
-      while(msgsEl.children.length > OBS_LIMIT){ msgsEl.removeChild(msgsEl.firstChild); }
-    });
-    observer.observe(msgsEl, {childList:true});
-
-    // 오류 핸들링 (간단하게 콘솔에 표시)
-    msgsRef.on('child_removed', ()=>{/* 자동으로 UI에 반영되어도 됨 */});
+    // 첫 렌더 후 준비
+    render();
   </script>
 </body>
 </html>
-
