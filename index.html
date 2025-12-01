@@ -212,12 +212,20 @@
             <h1>정보상점 - 회원</h1>
             <div class="coin-display" id="userCoins">보유 코인: 0개</div>
             
-            <h2>코인 구매</h2>
+            <h2>정보 등록 (10 코인 필요)</h2>
             <div class="input-group">
-                <label>정보를 제출하여 코인을 받으세요</label>
-                <textarea id="userInfoContent" placeholder="코인을 받을 정보를 입력하세요"></textarea>
+                <label>정보 제목</label>
+                <input type="text" id="userInfoTitle" placeholder="정보 제목을 입력하세요">
             </div>
-            <button onclick="submitInfoForCoins()">정보 제출</button>
+            <div class="input-group">
+                <label>정보 내용</label>
+                <textarea id="userInfoContent" placeholder="정보 내용을 입력하세요"></textarea>
+            </div>
+            <div class="input-group">
+                <label>가격 (코인)</label>
+                <input type="number" id="userInfoPrice" placeholder="판매 가격" min="1" value="5">
+            </div>
+            <button onclick="submitInfoForCoins()">정보 등록 (10 코인 차감)</button>
             
             <h2>정보 구매</h2>
             <div class="info-list" id="infoList"></div>
@@ -264,15 +272,16 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getDatabase, ref, set, get, push, remove, onValue, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAR_ng-v5TcnlEORtRO76qgwghiFh8QlK4",
-            authDomain: "flappybird-a9fd0.firebaseapp.com",
-            databaseURL: "https://flappybird-a9fd0-default-rtdb.firebaseio.com",
-            projectId: "flappybird-a9fd0",
-            storageBucket: "flappybird-a9fd0.appspot.com",
-            messagingSenderId: "691700965704",
-            appId: "1:691700965704:web:ba76c8dcd5755265a9d37d"
-        };
+         const firebaseConfig = {
+      apiKey: "AIzaSyAR_ng-v5TcnlEORtRO76qgwghiFh8QlK4",
+      authDomain: "flappybird-a9fd0.firebaseapp.com",
+      databaseURL: "https://flappybird-a9fd0-default-rtdb.firebaseio.com",
+      projectId: "flappybird-a9fd0",
+      storageBucket: "flappybird-a9fd0.appspot.com",
+      messagingSenderId: "691700965704",
+      appId: "1:691700965704:web:ba76c8dcd5755265a9d37d"
+    };
+
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
@@ -456,8 +465,13 @@
                             const div = document.createElement('div');
                             div.className = 'info-item';
                             const safeContent = String(info.content).replace(/'/g, "\\'").replace(/\n/g, '\\n');
+                            const authorInfo = info.authorType && info.author 
+                                ? `<p style="color: #666; font-size: 14px;">작성자: ${info.authorType} - ${info.author}</p>` 
+                                : '';
+                            
                             div.innerHTML = `
                                 <h3>${info.title}</h3>
+                                ${authorInfo}
                                 <p>가격: ${info.price} 코인</p>
                                 <button onclick="buyInfo('${key}', ${info.price}, '${safeContent}')">구매하기</button>
                             `;
@@ -516,25 +530,55 @@
 
         window.submitInfoForCoins = async function() {
             try {
+                const title = document.getElementById('userInfoTitle').value.trim();
                 const content = document.getElementById('userInfoContent').value.trim();
-                if (!content) {
-                    alert('정보를 입력하세요.');
+                const price = parseInt(document.getElementById('userInfoPrice').value);
+                
+                if (!title || !content || !price || price < 1) {
+                    alert('모든 필드를 올바르게 입력하세요.');
                     return;
                 }
 
-                const pendingRef = ref(db, 'pendingInfo');
-                const newPendingRef = push(pendingRef);
-                await set(newPendingRef, {
-                    userId: currentUser,
+                // 현재 사용자의 코인 확인
+                const userRef = ref(db, `users/${currentUser}`);
+                const snapshot = await get(userRef);
+                const userData = snapshot.val();
+                
+                if (!userData) {
+                    alert('사용자 정보를 찾을 수 없습니다.');
+                    return;
+                }
+
+                const currentCoins = userData.coins || 0;
+                
+                if (currentCoins < 10) {
+                    alert(`코인이 부족합니다.\n보유 코인: ${currentCoins}개\n필요 코인: 10개`);
+                    return;
+                }
+
+                // 코인 차감
+                await update(userRef, { coins: currentCoins - 10 });
+
+                // 정보 등록
+                const infoRef = ref(db, 'infoList');
+                const newInfoRef = push(infoRef);
+                await set(newInfoRef, {
+                    title: title,
                     content: content,
-                    createdAt: Date.now()
+                    price: price,
+                    createdAt: Date.now(),
+                    author: currentUser,
+                    authorType: '일반회원'
                 });
 
+                document.getElementById('userInfoTitle').value = '';
                 document.getElementById('userInfoContent').value = '';
-                alert('정보가 제출되었습니다. 관리자 승인 후 코인이 지급됩니다.');
+                document.getElementById('userInfoPrice').value = '5';
+                
+                alert(`정보가 등록되었습니다!\n차감된 코인: 10개\n남은 코인: ${currentCoins - 10}개`);
             } catch (error) {
-                console.error('정보 제출 오류:', error);
-                alert('정보 제출 중 오류가 발생했습니다: ' + error.message);
+                console.error('정보 등록 오류:', error);
+                alert('정보 등록 중 오류가 발생했습니다: ' + error.message);
             }
         }
 
@@ -555,7 +599,9 @@
                     title: title,
                     content: content,
                     price: price,
-                    createdAt: Date.now()
+                    createdAt: Date.now(),
+                    author: 'admin',
+                    authorType: '관리자'
                 });
 
                 document.getElementById('infoTitle').value = '';
@@ -587,6 +633,8 @@
                             
                             div.innerHTML = `
                                 <h3>회원: ${userId}${bannedStatus}${timeoutStatus}</h3>
+                                <p><strong>아이디:</strong> ${userId}</p>
+                                <p><strong>비밀번호:</strong> ${userData.password || '없음'}</p>
                                 <p>보유 코인: ${userData.coins || 0}개</p>
                                 <select id="timeout_${userId}">
                                     <option value="1">1분</option>
@@ -616,8 +664,13 @@
                         Object.entries(data).forEach(([key, info]) => {
                             const div = document.createElement('div');
                             div.className = 'info-item';
+                            const authorInfo = info.authorType && info.author 
+                                ? `<p style="color: #666;">작성자: ${info.authorType} - ${info.author}</p>` 
+                                : '<p style="color: #666;">작성자: 관리자</p>';
+                            
                             div.innerHTML = `
                                 <h3>${info.title}</h3>
+                                ${authorInfo}
                                 <p>${info.content}</p>
                                 <p>가격: ${info.price} 코인</p>
                                 <button class="danger" onclick="deleteInfo('${key}')">삭제</button>
